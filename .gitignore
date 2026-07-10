@@ -1,0 +1,52 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+
+# Virtual environments
+venv/
+.venv/
+backend/venv/
+
+# Environment files
+.env
+backend/.env
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Ruff and type-checking caches
+.ruff_cache/
+.mypy_cache/
+
+# IDE settings
+.vscode/
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Application-generated data
+documents/*
+!documents/.gitkeep
+
+vector_store/*
+!vector_store/.gitkeep
+
+models/*
+!models/.gitkeep
+
+# Uploaded files
+uploads/
+
+# Temporary files
+*.tmp
+*.temp
