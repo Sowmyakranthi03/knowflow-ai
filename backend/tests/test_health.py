@@ -14,6 +14,7 @@ def test_root_endpoint() -> None:
         "message": "KnowFlow AI API is running",
         "documentation": "/docs",
         "health": "/api/v1/health",
+        "documents": "/api/v1/documents",
     }
 
 
@@ -24,6 +25,6 @@ def test_health_endpoint() -> None:
     assert response.json() == {
         "status": "healthy",
         "service": "KnowFlow AI",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "environment": "development",
     }

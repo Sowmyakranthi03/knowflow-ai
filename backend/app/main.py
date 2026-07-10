@@ -4,8 +4,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.routes.documents import router as documents_router
 from app.api.routes.health import router as health_router
 from app.core.config import settings
+from app.core.exception_handlers import (
+    document_upload_exception_handler,
+)
+from app.core.exceptions import DocumentUploadError
 from app.core.logging import configure_logging
 
 
@@ -16,10 +21,20 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    settings.upload_directory.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
     logger.info(
         "Starting %s version %s",
         settings.app_name,
         settings.app_version,
+    )
+
+    logger.info(
+        "Document storage directory: %s",
+        settings.upload_directory,
     )
 
     yield
@@ -38,9 +53,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_exception_handler(
+    DocumentUploadError,
+    document_upload_exception_handler,
+)
 
 app.include_router(
     health_router,
+    prefix=settings.api_v1_prefix,
+)
+
+app.include_router(
+    documents_router,
     prefix=settings.api_v1_prefix,
 )
 
@@ -56,4 +80,5 @@ async def root() -> dict[str, str]:
         "message": f"{settings.app_name} API is running",
         "documentation": "/docs",
         "health": f"{settings.api_v1_prefix}/health",
+        "documents": f"{settings.api_v1_prefix}/documents",
     }
