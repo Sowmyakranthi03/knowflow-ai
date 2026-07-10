@@ -50,3 +50,6 @@ uploads/
 # Temporary files
 *.tmp
 *.temp
+
+documents/*
+!documents/.gitkeep

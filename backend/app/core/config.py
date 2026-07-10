@@ -10,7 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 class Settings(BaseSettings):
     app_name: str = "KnowFlow AI"
-    app_version: str = "0.2.0"
+    app_version: str = "0.3.0"
     app_description: str = (
         "Enterprise knowledge assistant powered by retrieval-augmented generation."
     )
@@ -22,8 +22,11 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     upload_directory: Path = PROJECT_ROOT / "documents"
+    processed_directory: Path = PROJECT_ROOT / "documents" / "processed"
+
     max_upload_size_mb: int = 10
     upload_chunk_size_bytes: int = 1024 * 1024
+    max_extracted_characters: int = 5_000_000
 
     allowed_document_extensions: tuple[str, ...] = (
         ".pdf",
@@ -33,7 +36,10 @@ class Settings(BaseSettings):
 
     allowed_document_mime_types: tuple[str, ...] = (
         "application/pdf",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        (
+            "application/vnd.openxmlformats-officedocument."
+            "wordprocessingml.document"
+        ),
         "text/plain",
         "application/octet-stream",
     )
@@ -45,20 +51,16 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    @field_validator("max_upload_size_mb")
+    @field_validator(
+        "max_upload_size_mb",
+        "upload_chunk_size_bytes",
+        "max_extracted_characters",
+    )
     @classmethod
-    def validate_max_upload_size(cls, value: int) -> int:
-        if value <= 0:
-            raise ValueError("MAX_UPLOAD_SIZE_MB must be greater than zero")
-
-        return value
-
-    @field_validator("upload_chunk_size_bytes")
-    @classmethod
-    def validate_upload_chunk_size(cls, value: int) -> int:
+    def validate_positive_integer(cls, value: int) -> int:
         if value <= 0:
             raise ValueError(
-                "UPLOAD_CHUNK_SIZE_BYTES must be greater than zero"
+                "Numeric processing settings must be greater than zero"
             )
 
         return value

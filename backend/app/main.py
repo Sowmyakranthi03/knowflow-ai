@@ -8,9 +8,13 @@ from app.api.routes.documents import router as documents_router
 from app.api.routes.health import router as health_router
 from app.core.config import settings
 from app.core.exception_handlers import (
+    document_processing_exception_handler,
     document_upload_exception_handler,
 )
-from app.core.exceptions import DocumentUploadError
+from app.core.exceptions import (
+    DocumentProcessingError,
+    DocumentUploadError,
+)
 from app.core.logging import configure_logging
 
 
@@ -26,6 +30,11 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         exist_ok=True,
     )
 
+    settings.processed_directory.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
     logger.info(
         "Starting %s version %s",
         settings.app_name,
@@ -35,6 +44,11 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     logger.info(
         "Document storage directory: %s",
         settings.upload_directory,
+    )
+
+    logger.info(
+        "Processed document directory: %s",
+        settings.processed_directory,
     )
 
     yield
@@ -56,6 +70,11 @@ app = FastAPI(
 app.add_exception_handler(
     DocumentUploadError,
     document_upload_exception_handler,
+)
+
+app.add_exception_handler(
+    DocumentProcessingError,
+    document_processing_exception_handler,
 )
 
 app.include_router(
