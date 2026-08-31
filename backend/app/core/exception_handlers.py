@@ -4,6 +4,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from app.core.exceptions import (
+    DocumentChunkingError,
     DocumentProcessingError,
     DocumentUploadError,
 )
@@ -23,15 +24,7 @@ async def document_upload_exception_handler(
         exception.message,
     )
 
-    return JSONResponse(
-        status_code=exception.status_code,
-        content={
-            "error": {
-                "code": exception.error_code,
-                "message": exception.message,
-            }
-        },
-    )
+    return _build_error_response(exception)
 
 
 async def document_processing_exception_handler(
@@ -45,6 +38,30 @@ async def document_processing_exception_handler(
         exception.message,
     )
 
+    return _build_error_response(exception)
+
+
+async def document_chunking_exception_handler(
+    request: Request,
+    exception: DocumentChunkingError,
+) -> JSONResponse:
+    logger.warning(
+        "Document chunking failed | path=%s | code=%s | reason=%s",
+        request.url.path,
+        exception.error_code,
+        exception.message,
+    )
+
+    return _build_error_response(exception)
+
+
+def _build_error_response(
+    exception: (
+        DocumentUploadError
+        | DocumentProcessingError
+        | DocumentChunkingError
+    ),
+) -> JSONResponse:
     return JSONResponse(
         status_code=exception.status_code,
         content={

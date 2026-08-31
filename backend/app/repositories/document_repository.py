@@ -42,6 +42,59 @@ class DocumentRepository:
 
         return matches[0]
 
+    def find_processed_document(self, document_id: str) -> Path:
+        self._validate_document_id(document_id)
+
+        processed_path = (
+            self.processed_directory / f"{document_id}.json"
+        )
+
+        if not processed_path.is_file():
+            raise DocumentProcessingError(
+                (
+                    "The document has not been processed yet. "
+                    "Process it before creating chunks."
+                ),
+                status_code=409,
+                error_code="DOCUMENT_NOT_PROCESSED",
+            )
+
+        return processed_path
+
+    def load_processed_document(
+        self,
+        document_id: str,
+    ) -> dict[str, Any]:
+        processed_path = self.find_processed_document(document_id)
+
+        try:
+            payload = json.loads(
+                processed_path.read_text(encoding="utf-8")
+            )
+
+        except json.JSONDecodeError as error:
+            raise DocumentProcessingError(
+                "The processed document data is invalid.",
+                status_code=500,
+                error_code="INVALID_PROCESSED_DOCUMENT",
+            ) from error
+
+        except OSError as error:
+            raise DocumentProcessingError(
+                "The processed document could not be read.",
+                status_code=500,
+                error_code="PROCESSED_DOCUMENT_READ_ERROR",
+            ) from error
+
+        if not isinstance(payload, dict):
+            raise DocumentProcessingError(
+                "The processed document data is invalid.",
+                status_code=500,
+                error_code="INVALID_PROCESSED_DOCUMENT",
+            )
+
+        return payload
+
     def save_processed_document(
         self,
         document_id: str,
@@ -53,7 +106,9 @@ class DocumentRepository:
         )
 
         output_path = self.processed_directory / f"{document_id}.json"
-        temporary_path = self.processed_directory / f"{document_id}.json.tmp"
+        temporary_path = (
+            self.processed_directory / f"{document_id}.json.tmp"
+        )
 
         try:
             temporary_path.write_text(

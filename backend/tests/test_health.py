@@ -25,6 +25,6 @@ def test_health_endpoint() -> None:
     assert response.json() == {
         "status": "healthy",
         "service": "KnowFlow AI",
-        "version": "0.3.0",
+        "version": "0.4.0",
         "environment": "development",
     }

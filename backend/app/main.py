@@ -8,10 +8,12 @@ from app.api.routes.documents import router as documents_router
 from app.api.routes.health import router as health_router
 from app.core.config import settings
 from app.core.exception_handlers import (
+    document_chunking_exception_handler,
     document_processing_exception_handler,
     document_upload_exception_handler,
 )
 from app.core.exceptions import (
+    DocumentChunkingError,
     DocumentProcessingError,
     DocumentUploadError,
 )
@@ -35,6 +37,11 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         exist_ok=True,
     )
 
+    settings.chunks_directory.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
     logger.info(
         "Starting %s version %s",
         settings.app_name,
@@ -49,6 +56,11 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     logger.info(
         "Processed document directory: %s",
         settings.processed_directory,
+    )
+
+    logger.info(
+        "Chunk storage directory: %s",
+        settings.chunks_directory,
     )
 
     yield
@@ -75,6 +87,11 @@ app.add_exception_handler(
 app.add_exception_handler(
     DocumentProcessingError,
     document_processing_exception_handler,
+)
+
+app.add_exception_handler(
+    DocumentChunkingError,
+    document_chunking_exception_handler,
 )
 
 app.include_router(
