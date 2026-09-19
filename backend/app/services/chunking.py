@@ -13,16 +13,22 @@ from app.repositories.document_repository import (
 )
 from app.schemas.chunk import (
     ChunkingConfigurationResponse,
+    ChunkingStatistics,
     DocumentChunk,
 )
 
-
+from app.repositories.chunk_repository import (
+    ChunkRepository,
+    chunk_repository,
+)
 class DocumentChunkingService:
     def __init__(
         self,
         repository: DocumentRepository,
+        chunk_repository: ChunkRepository,
     ) -> None:
         self.repository = repository
+        self.chunk_repository = chunk_repository
 
     @staticmethod
     def _split_text_with_overlap(
@@ -121,6 +127,42 @@ class DocumentChunkingService:
             page_numbers=page_numbers or [],
             metadata=metadata or {},
         )
+
+    @staticmethod
+    def _calculate_statistics(
+        chunks: list[DocumentChunk],
+    ) -> ChunkingStatistics:
+        """Calculate statistics for generated document chunks."""
+        if not chunks:
+            raise DocumentChunkingError(
+                "Chunk statistics cannot be calculated without chunks.",
+                status_code=422,
+                error_code="NO_CHUNKS_FOR_STATISTICS",
+            )
+
+        word_counts = [chunk.word_count for chunk in chunks]
+
+        return ChunkingStatistics(
+            chunks_created=len(chunks),
+            total_words=sum(word_counts),
+            total_characters=sum(
+                chunk.character_count for chunk in chunks
+            ),
+            average_chunk_words=round(
+                sum(word_counts) / len(chunks),
+                2,
+            ),
+            smallest_chunk_words=min(word_counts),
+            largest_chunk_words=max(word_counts),
+            configured_chunk_size_words=settings.chunk_size_words,
+            configured_overlap_words=settings.chunk_overlap_words,
+        )
+
+
+    
+    
+    
+    
     @staticmethod
     def _extract_section_provenance(
         section: dict[str, Any],
@@ -376,5 +418,6 @@ class DocumentChunkingService:
 
 
 document_chunking_service = DocumentChunkingService(
-    repository=document_repository
+    repository=document_repository,
+    chunk_repository=chunk_repository,
 )

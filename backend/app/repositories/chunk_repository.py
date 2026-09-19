@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from app.core.exceptions import DocumentChunkingError
+from app.core.config import settings
 
 
 class ChunkRepository:
@@ -91,3 +92,7 @@ class ChunkRepository:
             )
 
         return payload
+
+chunk_repository = ChunkRepository(
+    chunks_directory=settings.chunks_directory
+)

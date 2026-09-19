@@ -11,6 +11,7 @@ from app.services.chunking import (
     DocumentChunkingService,
     document_chunking_service,
 )
+from app.core.config import settings
 
 client = TestClient(app)
 
@@ -491,3 +492,40 @@ def test_chunk_document_creates_chunks(
     assert chunk.chunk_number == 1
     assert chunk.source_section_numbers == [1]
     assert chunk.text.startswith("KnowFlow converts")
+
+def test_calculate_chunk_statistics() -> None:
+    chunks = [
+        DocumentChunkingService._build_chunk(
+            document_id="test-document",
+            chunk_number=1,
+            text="one two three four",
+            source_section_numbers=[1],
+        ),
+        DocumentChunkingService._build_chunk(
+            document_id="test-document",
+            chunk_number=2,
+            text="three four five six seven eight",
+            source_section_numbers=[1, 2],
+        ),
+    ]
+
+    statistics = DocumentChunkingService._calculate_statistics(
+        chunks
+    )
+
+    assert statistics.chunks_created == 2
+    assert statistics.total_words == 10
+    assert statistics.total_characters == sum(
+        chunk.character_count for chunk in chunks
+    )
+    assert statistics.average_chunk_words == 5.0
+    assert statistics.smallest_chunk_words == 4
+    assert statistics.largest_chunk_words == 6
+    assert (
+        statistics.configured_chunk_size_words
+        == settings.chunk_size_words
+    )
+    assert (
+        statistics.configured_overlap_words
+        == settings.chunk_overlap_words
+    )
