@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from hashlib import sha256
 from math import ceil
 from typing import Any
@@ -7,20 +8,22 @@ from app.core.exceptions import (
     DocumentChunkingError,
     DocumentProcessingError,
 )
+from app.repositories.chunk_repository import (
+    ChunkRepository,
+    chunk_repository,
+)
 from app.repositories.document_repository import (
     DocumentRepository,
     document_repository,
 )
 from app.schemas.chunk import (
     ChunkingConfigurationResponse,
+    ChunkingResponse,
     ChunkingStatistics,
     DocumentChunk,
 )
 
-from app.repositories.chunk_repository import (
-    ChunkRepository,
-    chunk_repository,
-)
+
 class DocumentChunkingService:
     def __init__(
         self,
@@ -140,13 +143,17 @@ class DocumentChunkingService:
                 error_code="NO_CHUNKS_FOR_STATISTICS",
             )
 
-        word_counts = [chunk.word_count for chunk in chunks]
+        word_counts = [
+            chunk.word_count
+            for chunk in chunks
+        ]
 
         return ChunkingStatistics(
             chunks_created=len(chunks),
             total_words=sum(word_counts),
             total_characters=sum(
-                chunk.character_count for chunk in chunks
+                chunk.character_count
+                for chunk in chunks
             ),
             average_chunk_words=round(
                 sum(word_counts) / len(chunks),
@@ -154,15 +161,14 @@ class DocumentChunkingService:
             ),
             smallest_chunk_words=min(word_counts),
             largest_chunk_words=max(word_counts),
-            configured_chunk_size_words=settings.chunk_size_words,
-            configured_overlap_words=settings.chunk_overlap_words,
+            configured_chunk_size_words=(
+                settings.chunk_size_words
+            ),
+            configured_overlap_words=(
+                settings.chunk_overlap_words
+            ),
         )
 
-
-    
-    
-    
-    
     @staticmethod
     def _extract_section_provenance(
         section: dict[str, Any],
@@ -170,7 +176,10 @@ class DocumentChunkingService:
         """Extract source section, page numbers, and metadata."""
         section_number = section.get("section_number")
         section_type = section.get("section_type")
-        section_metadata = section.get("metadata", {})
+        section_metadata = section.get(
+            "metadata",
+            {},
+        )
 
         if not isinstance(section_number, int):
             raise DocumentChunkingError(
@@ -184,7 +193,9 @@ class DocumentChunkingService:
 
         page_numbers: list[int] = []
 
-        page_number = section_metadata.get("page_number")
+        page_number = section_metadata.get(
+            "page_number"
+        )
 
         if isinstance(page_number, int):
             page_numbers.append(page_number)
@@ -199,14 +210,21 @@ class DocumentChunkingService:
             page_numbers,
             metadata,
         )
+
     @staticmethod
     def _can_group_sections(
         current_section: dict[str, Any],
         next_section: dict[str, Any],
     ) -> bool:
         """Determine whether two adjacent sections can share a chunk."""
-        current_metadata = current_section.get("metadata", {})
-        next_metadata = next_section.get("metadata", {})
+        current_metadata = current_section.get(
+            "metadata",
+            {},
+        )
+        next_metadata = next_section.get(
+            "metadata",
+            {},
+        )
 
         if not isinstance(current_metadata, dict):
             current_metadata = {}
@@ -214,8 +232,12 @@ class DocumentChunkingService:
         if not isinstance(next_metadata, dict):
             next_metadata = {}
 
-        current_page = current_metadata.get("page_number")
-        next_page = next_metadata.get("page_number")
+        current_page = current_metadata.get(
+            "page_number"
+        )
+        next_page = next_metadata.get(
+            "page_number"
+        )
 
         if (
             isinstance(current_page, int)
@@ -225,6 +247,7 @@ class DocumentChunkingService:
             return False
 
         return True
+
     @classmethod
     def _group_sections(
         cls,
@@ -239,14 +262,21 @@ class DocumentChunkingService:
         for section in sections:
             text = section.get("text", "")
 
-            if not isinstance(text, str) or not text.strip():
+            if (
+                not isinstance(text, str)
+                or not text.strip()
+            ):
                 continue
 
-            section_word_count = len(text.split())
+            section_word_count = len(
+                text.split()
+            )
 
             if not current_group:
                 current_group = [section]
-                current_word_count = section_word_count
+                current_word_count = (
+                    section_word_count
+                )
                 continue
 
             previous_section = current_group[-1]
@@ -257,22 +287,28 @@ class DocumentChunkingService:
             )
 
             fits_target = (
-                current_word_count + section_word_count
+                current_word_count
+                + section_word_count
                 <= target_words
             )
 
             if can_group and fits_target:
                 current_group.append(section)
-                current_word_count += section_word_count
+                current_word_count += (
+                    section_word_count
+                )
             else:
                 groups.append(current_group)
                 current_group = [section]
-                current_word_count = section_word_count
+                current_word_count = (
+                    section_word_count
+                )
 
         if current_group:
             groups.append(current_group)
 
         return groups
+
     @classmethod
     def _create_chunks_from_sections(
         cls,
@@ -300,30 +336,50 @@ class DocumentChunkingService:
             for section in group:
                 text = section.get("text", "")
 
-                if isinstance(text, str) and text.strip():
-                    group_text_parts.append(text.strip())
+                if (
+                    isinstance(text, str)
+                    and text.strip()
+                ):
+                    group_text_parts.append(
+                        text.strip()
+                    )
 
                 (
                     section_number,
                     section_pages,
                     section_metadata,
-                ) = cls._extract_section_provenance(section)
+                ) = cls._extract_section_provenance(
+                    section
+                )
 
-                source_section_numbers.append(section_number)
+                source_section_numbers.append(
+                    section_number
+                )
 
                 for page_number in section_pages:
-                    if page_number not in page_numbers:
-                        page_numbers.append(page_number)
+                    if (
+                        page_number
+                        not in page_numbers
+                    ):
+                        page_numbers.append(
+                            page_number
+                        )
 
-                group_metadata.update(section_metadata)
+                group_metadata.update(
+                    section_metadata
+                )
 
-            group_text = " ".join(group_text_parts)
+            group_text = " ".join(
+                group_text_parts
+            )
 
-            text_chunks = cls._split_text_with_overlap(
-                text=group_text,
-                chunk_size=chunk_size,
-                overlap=overlap,
-                min_chunk_size=min_chunk_size,
+            text_chunks = (
+                cls._split_text_with_overlap(
+                    text=group_text,
+                    chunk_size=chunk_size,
+                    overlap=overlap,
+                    min_chunk_size=min_chunk_size,
+                )
             )
 
             for text_chunk in text_chunks:
@@ -331,7 +387,9 @@ class DocumentChunkingService:
                     document_id=document_id,
                     chunk_number=chunk_number,
                     text=text_chunk,
-                    source_section_numbers=source_section_numbers,
+                    source_section_numbers=(
+                        source_section_numbers
+                    ),
                     page_numbers=page_numbers,
                     metadata=group_metadata,
                 )
@@ -340,13 +398,16 @@ class DocumentChunkingService:
                 chunk_number += 1
 
         return chunks
+
     def validate_processed_document(
         self,
         document_id: str,
     ) -> dict[str, Any]:
         try:
             processed_document = (
-                self.repository.load_processed_document(document_id)
+                self.repository.load_processed_document(
+                    document_id
+                )
             )
         except DocumentProcessingError as error:
             raise DocumentChunkingError(
@@ -355,7 +416,9 @@ class DocumentChunkingService:
                 error_code=error.error_code,
             ) from error
 
-        sections = processed_document.get("sections")
+        sections = processed_document.get(
+            "sections"
+        )
 
         if not isinstance(sections, list):
             raise DocumentChunkingError(
@@ -372,13 +435,16 @@ class DocumentChunkingService:
             )
 
         return processed_document
+
     def chunk_document(
         self,
         document_id: str,
-    ) -> list[DocumentChunk]:
+    ) -> ChunkingResponse:
         """Create retrieval-ready chunks from a processed document."""
-        processed_document = self.validate_processed_document(
-            document_id
+        processed_document = (
+            self.validate_processed_document(
+                document_id
+            )
         )
 
         sections = processed_document["sections"]
@@ -388,7 +454,9 @@ class DocumentChunkingService:
             sections=sections,
             chunk_size=settings.chunk_size_words,
             overlap=settings.chunk_overlap_words,
-            min_chunk_size=settings.min_chunk_size_words,
+            min_chunk_size=(
+                settings.min_chunk_size_words
+            ),
         )
 
         if not chunks:
@@ -398,26 +466,65 @@ class DocumentChunkingService:
                 error_code="NO_CHUNKS_CREATED",
             )
 
-        if len(chunks) > settings.max_chunks_per_document:
+        if (
+            len(chunks)
+            > settings.max_chunks_per_document
+        ):
             raise DocumentChunkingError(
                 "Document exceeds the maximum number of allowed chunks.",
                 status_code=422,
                 error_code="MAX_CHUNKS_EXCEEDED",
             )
 
-        return chunks
+        statistics = (
+            self._calculate_statistics(chunks)
+        )
+
+        output_path = (
+            self.chunk_repository.chunks_directory
+            / f"{document_id}.json"
+        )
+
+        response = ChunkingResponse(
+            document_id=document_id,
+            status="chunked",
+            chunked_at=datetime.now(timezone.utc),
+            chunks=chunks,
+            statistics=statistics,
+            chunks_output_path=str(output_path),
+        )
+
+        self.chunk_repository.save_chunks(
+            document_id=document_id,
+            payload=response.model_dump(
+                mode="json"
+            ),
+        )
+
+        return response
 
     @staticmethod
-    def get_configuration() -> ChunkingConfigurationResponse:
+    def get_configuration(
+    ) -> ChunkingConfigurationResponse:
         return ChunkingConfigurationResponse(
-            chunk_size_words=settings.chunk_size_words,
-            chunk_overlap_words=settings.chunk_overlap_words,
-            min_chunk_size_words=settings.min_chunk_size_words,
-            max_chunks_per_document=settings.max_chunks_per_document,
+            chunk_size_words=(
+                settings.chunk_size_words
+            ),
+            chunk_overlap_words=(
+                settings.chunk_overlap_words
+            ),
+            min_chunk_size_words=(
+                settings.min_chunk_size_words
+            ),
+            max_chunks_per_document=(
+                settings.max_chunks_per_document
+            ),
         )
 
 
-document_chunking_service = DocumentChunkingService(
-    repository=document_repository,
-    chunk_repository=chunk_repository,
+document_chunking_service = (
+    DocumentChunkingService(
+        repository=document_repository,
+        chunk_repository=chunk_repository,
+    )
 )

@@ -1,7 +1,12 @@
 from fastapi import APIRouter, File, UploadFile, status
 
 from app.core.config import settings
-from app.schemas.chunk import ChunkingConfigurationResponse
+
+from app.schemas.chunk import (
+    ChunkingConfigurationResponse,
+    ChunkingResponse,
+)
+
 from app.schemas.document import (
     DocumentProcessingResponse,
     DocumentUploadResponse,
@@ -78,6 +83,25 @@ async def process_document(
     document_id: str,
 ) -> DocumentProcessingResponse:
     return document_processing_service.process_document(document_id)
+
+
+@router.post(
+    "/{document_id}/chunk",
+    response_model=ChunkingResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Chunk a processed document",
+    description=(
+        "Creates retrieval-ready chunks from a processed document, "
+        "preserves source metadata, calculates chunking statistics, "
+        "and persists the generated chunks."
+    ),
+)
+async def chunk_document(
+    document_id: str,
+) -> ChunkingResponse:
+    return document_chunking_service.chunk_document(
+        document_id
+    )
 
 
 @router.post(
